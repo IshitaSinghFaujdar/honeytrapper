@@ -1,0 +1,31 @@
+# Python specific
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+venv/
+
+# Logs
+logs/
+*.log
+risk_model_training.log
+testing_model.log
+
+# Data files (often large or regenerated)
+
+test.csv
+train.csv
+
+# Trained models and other artifacts
+
+tfidf_vectorizer.pkl
+
+# Pytest cache
+.pytest_cache/
+
+# Environment variables
+.env
+
+# IDE specific files (common ones, add more if needed)
+.vscode/
+.idea/
