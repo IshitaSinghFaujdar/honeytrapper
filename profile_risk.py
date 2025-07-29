@@ -1,4 +1,4 @@
-# risk_model_training.py
+# profile_risk.py
 
 import pandas as pd
 import joblib
@@ -20,9 +20,17 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
-def log(msg):
+# FIX: Update log function to accept an optional 'level' argument
+def log(msg, level=logging.INFO):
     print(msg)
-    logging.info(msg)
+    if level == logging.INFO:
+        logging.info(msg)
+    elif level == logging.WARNING:
+        logging.warning(msg)
+    elif level == logging.ERROR:
+        logging.error(msg)
+    elif level == logging.DEBUG:
+        logging.debug(msg)
 
 # -----------------------------------------------
 # 📥 Load and Preprocess Data
@@ -46,6 +54,24 @@ def preprocess_data(df):
     sentiment_model = hf_pipeline("text-classification", model="distilbert-base-uncased-finetuned-sst-2-english")
     df['bio_sentiment_score'] = df['bio'].apply(lambda text: 1 if sentiment_model(text)[0]['label'] == 'POSITIVE' else 0)
     
+    # FIX: Map string risk labels to numerical values
+    # Assuming 'low_risk' maps to 0 and 'high_risk'/'suspicious' maps to 1
+    # Adjust this mapping if your actual labels are different or more complex
+    log("Mapping risk_label to numerical values...")
+    label_mapping = {
+        'low_risk': 0,
+        'high_risk': 1,
+        'suspicious': 1 # Assuming 'suspicious' is also considered high risk
+        # Add other mappings if you have more labels
+    }
+    # Use .get() with a default value (e.g., 0 or handle as error) if a label might be missing
+    df['risk_label'] = df['risk_label'].apply(lambda x: label_mapping.get(x, -1)) 
+    
+    # Optional: Remove rows with unmapped labels if -1 is used for unmapped
+    if -1 in df['risk_label'].unique():
+        log("Warning: Found unmapped risk labels. Consider adjusting label_mapping or removing these rows.", level=logging.WARNING)
+        # Example: df = df[df['risk_label'] != -1]
+
     log("Preprocessing complete.")
     return df
 
@@ -68,7 +94,8 @@ def train_model(df):
 
     preprocessor = ColumnTransformer(transformers=[
         ('num', StandardScaler(), numeric_features),
-        ('cat', OneHotEncoder(), categorical_features)
+        # FIX: Add handle_unknown='ignore' to OneHotEncoder
+        ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_features) 
     ])
 
     clf_pipeline = Pipeline(steps=[
