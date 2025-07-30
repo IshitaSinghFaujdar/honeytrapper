@@ -21,7 +21,7 @@ def read_chat_from_file(file_path: str):
         A list of strings, where each string is a message.
         Returns None if the file is not found.
     """
-    
+
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             # Read all lines, and strip any leading/trailing whitespace (like newlines)
@@ -80,16 +80,36 @@ def run_sentinel():
     print(f"FINAL VERDICT SCORE: {final_verdict_score:.2f}%")
     print("-" * 30)
 
-    # --- STAGE 5: THE NUDGE ---
-    if final_verdict_score > 60:
-        print("\n🚨 HIGH RISK DETECTED! 🚨")
-        print("This conversation is likely a honeytrap/scam based on the overall analysis.")
-        print("Suggested Actions:")
-        print("  [1] Block and Report (Recommended)")
-        print("  [2] Engage Red Teaming Bot (Coming Soon!)")
-    else:
-        print("\n✅ Low to moderate risk detected.")
-        print("Continue with caution, but no immediate high-threat indicators found.")
+   # --- STAGE 5: THE NUDGE & ACTION ---
+if final_verdict_score > 60:
+    print("\n🚨 HIGH RISK DETECTED! 🚨")
+    print("This conversation is likely a honeytrap/scam based on the overall analysis.")
+    
+    # This is the loop that gives the user a choice
+    while True:
+        print("\nSuggested Actions:")
+        print("  [1] Block and Report (End Program)")
+        print("  [2] Engage Red Teaming Bot")
+        choice = input("Please choose an option (1 or 2): ")
+        
+        if choice == "1":
+            print("\nAction: Block and report the user on the platform. Stay safe!")
+            break  # This exits the loop and the program ends
+        
+        # This is the 'elif' block you were looking for
+        elif choice == "2":
+            # Import the function from our red teaming bot module
+            from red_teaming_bot import start_red_teaming_session
+            
+            # Ask for the Gemini API key
+            api_key = input("Please enter your Google AI (Gemini) API key to continue: ")
+            
+            # Start the interactive session
+            start_red_teaming_session(api_key, all_messages)
+            break  # This exits the loop after the bot session is over
+        else:
+            print("Invalid choice. Please enter 1 or 2.")
 
-if __name__ == "__main__":
-    run_sentinel()
+else:
+    print("\n✅ Low to moderate risk detected.")
+    print("Continue with caution, but no immediate high-threat indicators found.")
