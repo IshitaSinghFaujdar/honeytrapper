@@ -28,7 +28,7 @@ print(f"DEBUG: Added '{classifier_path}' to Python's search paths.")
 
 
 # Now, this import will work because Python is looking inside the 'intent_classifiers' folder.
-from intent_classifier.classify import classify_message_window
+from classify import classify_message_window
 
 
 def analyze_chat_history(message_history: list):
