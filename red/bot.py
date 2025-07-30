@@ -76,7 +76,7 @@ def setup_bot_chain():
     if not GOOGLE_API_KEY:
         raise ValueError("GEMINI_KEY not found. Ensure it's in a .env file in the same directory as app.py.")
 
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.8, google_api_key=GOOGLE_API_KEY)
+    llm = ChatGoogleGenerativeAI(model="models/gemini-2.5-flash-lite", temperature=0.8, google_api_key=GOOGLE_API_KEY)
     
     conversation_chain = RunnableWithMessageHistory(
         prompt | llm,
