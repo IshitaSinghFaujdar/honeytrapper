@@ -1,5 +1,5 @@
 # --- bot.py (LangChain Version - Restructured and Fixed) ---
-
+from trigger_analyzer import analyze_for_triggers
 from langchain_google_genai import ChatGoogleGenerativeAI
 import os
 from dotenv import load_dotenv
@@ -89,21 +89,34 @@ def setup_bot_chain():
 
 # --- This is the MAIN function that Streamlit will call ---
 # It now handles the setup logic internally.
-def get_gemini_reply(user_input: str) -> str:
+def get_gemini_reply(user_input: str) -> dict:
     """
-    Gets a reply from the bot. If the bot isn't set up yet, it initializes it first.
+    Gets a reply AND analyzes the scammer's input for triggers.
+    Returns a dictionary containing the reply and the session status.
     """
     global _conversation_chain
-    
-    # "Lazy initialization": Only set up the chain the very first time this function is called.
     if _conversation_chain is None:
         _conversation_chain = setup_bot_chain()
 
-    session_id = "default_streamlit_session"
+    # --- NEW: Analyze the scammer's input for triggers BEFORE replying ---
+    trigger = analyze_for_triggers(user_input)
+    if trigger:
+        # If a trigger is found, we can conclude the investigation!
+        return {
+            "reply": f"CONFIRMED THREAT. The user provided a potential {trigger['type']}: {trigger['value']}",
+            "status": "concluded",
+            "trigger_info": trigger
+        }
 
+    # If no trigger, proceed with the normal conversation
+    session_id = "default_streamlit_session"
     response = _conversation_chain.invoke(
         {"input": user_input},
         config={"configurable": {"session_id": session_id}}
     )
     
-    return response.content.strip()
+    return {
+        "reply": response.content.strip(),
+        "status": "engaging",
+        "trigger_info": None
+    }
