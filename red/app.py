@@ -12,7 +12,7 @@ import time # For performance timing
 from profile_analyzer import calculate_profile_risk
 from chat_analyzer import analyze_chat_history
 from verdict_engine import calculate_final_verdict
-from red_teaming_bot import SYSTEM_PROMPT, get_gemini_reply
+from bot import get_gemini_reply, system_prompt
 
 # --- Logger Initialization ---
 # This setup correctly creates a new log file for each run in the 'logs/app' directory.
@@ -59,8 +59,7 @@ if 'red_team_mode' not in st.session_state:
     st.session_state.red_team_mode = False
 if 'messages' not in st.session_state:
     st.session_state.messages = []
-if 'api_key' not in st.session_state:
-    st.session_state.api_key = ""
+
 
 # --- Sidebar for Inputs ---
 with st.sidebar:
@@ -160,34 +159,52 @@ if st.session_state.analysis_complete:
             if st.button("Engage Red Teaming Bot 🤖", use_container_width=True):
                 logger.info("User action: Chose 'Engage Red Teaming Bot'.")
                 st.session_state.red_team_mode = True
-                st.session_state.messages = [{"role": "user", "parts": [SYSTEM_PROMPT]}]
+                st.session_state.messages = [{"role": "user", "parts": [system_prompt]}]
                 st.session_state.messages.append({"role": "model", "parts": ["okay, i'm ready. what did they say back?"]})
+
+# --- In app.py, replace the final 'if st.session_state.red_team_mode:' block ---
 
 # --- Red Teaming Bot Chat Interface ---
 if st.session_state.red_team_mode:
     st.divider()
     st.header("🤖 Red Teaming Bot Session")
 
-    if not st.session_state.api_key:
-         st.session_state.api_key = st.text_input("Enter your Google AI (Gemini) API Key:", type="password")
+    # The API key is now loaded from .env, so we don't need to ask for it.
+    
+    # Initialize the display history if it doesn't exist
+    if "display_messages" not in st.session_state:
+        st.session_state.display_messages = []
 
-    if st.session_state.api_key:
-        # Display existing chat messages
-        for message in st.session_state.messages[1:]:
-            role = "You (Alex)" if message["role"] == "model" else "Scammer"
-            with st.chat_message(name=role):
-                st.markdown(message["parts"][0])
-        
-        if prompt := st.chat_input("Enter the scammer's latest message..."):
-            logger.info(f"Red Team Input (from scammer): '{prompt}'")
-            st.session_state.messages.append({"role": "user", "parts": [prompt]})
-            with st.chat_message(name="Scammer"):
-                st.markdown(prompt)
+    # Display existing chat messages from our display history
+    for message in st.session_state.display_messages:
+        role = "You (Alex)" if message["role"] == "assistant" else "Scammer"
+        with st.chat_message(name=role):
+            st.markdown(message["content"])
+    
+    # The chat input widget
+    if prompt := st.chat_input("You are scammer now, enter some messages to see how the bot will converse from your account after reporting..."):
+        logger.info(f"Red Team Input (from scammer): '{prompt}'")
 
-            with st.spinner("Alex is thinking..."):
-                logger.info("Sending request to Gemini API...")
-                reply = get_gemini_reply(st.session_state.api_key, st.session_state.messages)
-                logger.info("Received reply from Gemini API.")
-                st.session_state.messages.append({"role": "model", "parts": [reply]})
-                with st.chat_message(name="You (Alex)"):
-                    st.markdown(reply)
+        # Add user's message to the display list and show it immediately
+        st.session_state.display_messages.append({"role": "user", "content": prompt})
+        with st.chat_message(name="Scammer"):
+            st.markdown(prompt)
+
+        # Get and display the bot's reply
+        with st.spinner("User is typing..."):
+            logger.info("Sending request to LangChain Gemini bot...")
+            
+            # --- THIS IS THE KEY CHANGE ---
+            # We now call the new function with only the user's prompt.
+            # LangChain handles the memory internally.
+            reply = get_gemini_reply(prompt)
+            # -----------------------------
+
+            logger.info("Received reply from LangChain bot.")
+            # Add bot's reply to the display list
+            st.session_state.display_messages.append({"role": "assistant", "content": reply})
+            with st.chat_message(name="You (Alex)"):
+                st.markdown(reply)
+            
+            # Rerun to show the new message immediately
+            st.rerun()
