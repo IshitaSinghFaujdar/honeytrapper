@@ -4,7 +4,6 @@
 def calculate_final_verdict(profile_risk_score: int, chat_confidence_score: float):
     """
     Calculates a final verdict score by combining profile and chat analysis.
-    
     Args:
         profile_risk_score: The score from the profile analyzer (0-10).
         chat_confidence_score: The confidence score from the chat analyzer (0-100).

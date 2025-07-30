@@ -99,7 +99,7 @@ def calculate_profile_risk(profile_data: dict):
     return final_score, risk_factors_found
 
 def run_profile_analyzer():
-    """Main function to run the profile analysis module."""
+    """Main function to run the profile analysis module. """
     profile_info = get_profile_data_from_user()
     
     print("\n--- Analyzing Profile ---")

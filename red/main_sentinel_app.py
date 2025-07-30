@@ -21,6 +21,7 @@ def read_chat_from_file(file_path: str):
         A list of strings, where each string is a message.
         Returns None if the file is not found.
     """
+    
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             # Read all lines, and strip any leading/trailing whitespace (like newlines)
