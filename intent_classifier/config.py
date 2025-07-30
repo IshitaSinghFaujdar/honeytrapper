@@ -11,7 +11,7 @@ TECH_KEYWORDS = [
 
 # Confidence threshold for flagging an anomaly.
 # Tune this value after reviewing model performance.
-INTENT_CONFIDENCE_THRESHOLD = 0.85
+INTENT_CONFIDENCE_THRESHOLD = 0.4
 
 # Pre-trained Sentence-BERT model name for generating embeddings.
 SENTENCE_BERT_MODEL = 'all-MiniLM-L6-v2'
