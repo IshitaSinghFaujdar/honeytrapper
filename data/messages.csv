@@ -1,0 +1,4 @@
+﻿id,text,timestamp,sender_account_id,receiver_person_id
+M001,"Hey, you look cute 😊",2025-07-28T18:00:00,A001,U001
+M002,Can we be friends? 💬,2025-07-28T18:10:00,A002,U003
+M003,"Sure, where are you from? 🌍",2025-07-28T18:15:00,A003,U004

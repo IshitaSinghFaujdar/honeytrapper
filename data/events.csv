@@ -1,0 +1,3 @@
+id,type,timestamp,message_id
+E001,MessageRead,2025-07-28T18:01:00,M001
+E002,LinkClicked,2025-07-28T18:11:00,M002
