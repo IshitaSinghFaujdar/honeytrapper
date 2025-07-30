@@ -1,24 +1,17 @@
-# --- verdict_engine.py ---
-# Module 3 of Project Sentinel
+# In verdict_engine.py
 
-def calculate_final_verdict(profile_risk_score: int, chat_confidence_score: float):
-    """
-    Calculates a final verdict score by combining profile and chat analysis.
-    Args:
-        profile_risk_score: The score from the profile analyzer (0-10).
-        chat_confidence_score: The confidence score from the chat analyzer (0-100).
-        
-    Returns:
-        A final weighted score (0-100).
-    """
-    # Convert profile score (0-10) to a 0-100 scale for weighting.
-    profile_score_100 = profile_risk_score * 10
+def calculate_final_verdict(profile_risk_score, chat_analysis_results):
+    spam_score = chat_analysis_results.get("spam_confidence_score", 0)
+    sextortion_score = chat_analysis_results.get("sextortion_confidence_score", 0)
+    tech_score = chat_analysis_results.get("tech_honeytrap_score", 0) # --- NEW ---
+
+    profile_risk_percent = profile_risk_score * 10
     
-    # Define weights. Chat content is often more revealing, so we give it more weight.
-    CHAT_WEIGHT = 0.70  # 70% importance
-    PROFILE_WEIGHT = 0.30  # 30% importance
+    spam_verdict = (0.3 * profile_risk_percent) + (0.7 * spam_score)
+    tech_verdict = (0.3 * profile_risk_percent) + (0.7 * tech_score) # --- NEW ---
+    sextortion_verdict = (0.2 * profile_risk_percent) + (0.8 * sextortion_score) # Highest weight
+
+    # Final verdict is the highest of ALL potential threats
+    final_verdict = max(spam_verdict, tech_verdict, sextortion_verdict) # --- MODIFIED ---
     
-    final_score = (chat_confidence_score * CHAT_WEIGHT) + (profile_score_100 * PROFILE_WEIGHT)
-    
-    # Ensure the score does not exceed 100.
-    return min(final_score, 100)
+    return min(final_verdict, 100)
