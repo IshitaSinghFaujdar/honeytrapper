@@ -1,37 +1,36 @@
-# --- app.py ---
-# The Streamlit UI for Project Sentinel (with enhanced file-based logging)
-
+# --- app.py (Final Integrated Version with Auto-Concluding Bot) ---
 import streamlit as st
-import pandas as pd
 import os
 import logging
 from datetime import datetime
-import time # For performance timing
+import time
 
 # Import our backend modules
 from profile_analyzer import calculate_profile_risk
 from chat_analyzer import analyze_chat_history
 from verdict_engine import calculate_final_verdict
-from bot import get_gemini_reply, system_prompt
+from bot import get_gemini_reply, system_prompt # Use capital SYSTEM_PROMPT from bot.py
 
-# --- Logger Initialization (Unchanged) ---
+# --- Logger Initialization ---
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
 if not logger.handlers:
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    os.makedirs("logs/app", exist_ok=True)
-    log_file = f"logs/app/{timestamp}.log"
+    os.makedirs("logs", exist_ok=True) 
+    log_file = f"logs/app_{timestamp}.log"
+
     handler = logging.FileHandler(log_file)
     handler.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
-# --- App Configuration (Unchanged) ---
+# --- App Configuration ---
 st.set_page_config(page_title="Project Sentinel", layout="wide")
 logger.info("Application session started.")
 
-# --- Helper Functions (Unchanged) ---
+# --- Helper Functions ---
 def read_chat_from_file(uploaded_file):
     logger.info("Function entered: read_chat_from_file")
     try:
@@ -44,18 +43,21 @@ def read_chat_from_file(uploaded_file):
         st.error("Could not read the file. Please ensure it's a valid .txt file and try again.")
         return None
 
-# --- Main App UI (Unchanged) ---
+# --- Main App UI ---
 st.title("🛡️ Project Sentinel: Honeytrap Detector")
 
-# --- Initialize Session State (Unchanged) ---
+# --- Initialize Session State ---
 if 'analysis_complete' not in st.session_state:
     st.session_state.analysis_complete = False
 if 'red_team_mode' not in st.session_state:
     st.session_state.red_team_mode = False
-if 'messages' not in st.session_state:
-    st.session_state.messages = []
+if 'display_messages' not in st.session_state:
+    st.session_state.display_messages = []
+if 'investigation_concluded' not in st.session_state:
+    st.session_state.investigation_concluded = False
 
-# --- Sidebar for Inputs (Unchanged) ---
+
+# --- Sidebar for Inputs ---
 with st.sidebar:
     st.header("1. Profile Analysis")
     with st.form("profile_form"):
@@ -72,12 +74,16 @@ with st.sidebar:
         uploaded_file = st.file_uploader("Upload chat history (.txt)", type="txt")
         submit_button = st.form_submit_button("Analyze")
 
-# --- Main Panel for Outputs (MODIFIED) ---
+# --- Main Panel for Outputs ---
 if submit_button:
     logger.info("="*20 + " NEW ANALYSIS STARTED " + "="*20)
     start_time = time.time()
+    # Reset all relevant flags for a new analysis
     st.session_state.analysis_complete = False
     st.session_state.red_team_mode = False
+    st.session_state.investigation_concluded = False
+    st.session_state.display_messages = []
+
 
     profile_data = {
         'username': username, 'bio': bio, 'followers': followers,
@@ -93,15 +99,14 @@ if submit_button:
     if uploaded_file is not None:
         all_messages = read_chat_from_file(uploaded_file)
         if all_messages:
-            logger.info("Starting tiered chat analysis...")
+            logger.info("Starting tiered hybrid chat analysis...")
             st.session_state.chat_analysis = analyze_chat_history(all_messages)
-            logger.info("Chat analysis finished.")
+            logger.info("Tiered hybrid chat analysis finished.")
 
-            # --- MODIFIED: Pass the entire analysis dictionary to the verdict engine ---
-            logger.info("Calculating final verdict based on tiered analysis...")
+            logger.info("Calculating final verdict...")
             st.session_state.final_verdict = calculate_final_verdict(
                 st.session_state.profile_risk,
-                st.session_state.chat_analysis  # Pass the whole object now
+                st.session_state.chat_analysis
             )
             logger.info(f"Final verdict score is {st.session_state.final_verdict:.2f}.")
 
@@ -115,62 +120,51 @@ if submit_button:
     logger.info(f"--- Total analysis duration: {end_time - start_time:.2f} seconds ---")
 
 
-# --- Display Results if Analysis is Complete (COMPLETELY OVERHAULED) ---
-if st.session_state.analysis_complete:
+# --- Display Results if Analysis is Complete ---
+if 'analysis_complete' in st.session_state and st.session_state.analysis_complete:
     analysis = st.session_state.chat_analysis
     st.header("Threat Assessment Results")
     
-    # --- NEW: More informative metrics ---
     col1, col2, col3 = st.columns(3)
     col1.metric("Profile Risk Score", f"{st.session_state.profile_risk} / 10")
     col2.metric("Primary Chat Threat", analysis.get('primary_intent', 'N/A'))
     col3.metric("🚨 FINAL VERDICT", f"{st.session_state.final_verdict:.2f}%", 
                  delta_color="off" if st.session_state.final_verdict < 60 else "inverse")
 
-    # --- NEW: More detailed expander ---
     with st.expander("Show Detailed Analysis"):
         st.subheader("Profile Risk Factors:")
         for reason in st.session_state.profile_reasons:
             st.write(f"- {reason}")
         
         st.subheader("Chat Analysis Confidence:")
-        st.write(f"- **Sextortion/Blackmail:** {analysis.get('sextortion_confidence_score', 0)}%")
-        st.write(f"- **Tech Honeytrap/Scam:** {analysis.get('tech_honeytrap_score', 0)}%")
-        st.write(f"- **General Spam/Scam:** {analysis.get('spam_confidence_score', 0)}%")
+        st.write(f"- **Sextortion/Blackmail:** {analysis.get('sextortion_confidence_score', 0):.0f}%")
+        st.write(f"- **Tech Honeytrap/Scam:** {analysis.get('tech_honeytrap_score', 0):.0f}%")
+        st.write(f"- **General Spam/Scam:** {analysis.get('spam_confidence_score', 0):.0f}%")
         
-        st.subheader("Suspicious Keywords Found:")
-        st.write(f"- **Sextortion:** {', '.join(analysis['keywords_found']['sextortion']) or 'None'}")
-        st.write(f"- **Tech:** {', '.join(analysis['keywords_found']['tech']) or 'None'}")
-        st.write(f"- **General Spam:** {', '.join(analysis['keywords_found']['spam']) or 'None'}")
+        st.subheader("⚠️ Psychological Tactic Analysis:")
+        psych_results = analysis.get('psychological_analysis', {})
+        if not psych_results or psych_results.get('total_risk_score', 0) == 0:
+            st.success("No major psychological manipulation tactics detected.")
+        else:
+            for tactic, details in psych_results.items():
+                if tactic != 'total_risk_score':
+                    st.warning(f"**Detected Tactic: {tactic}**")
+                    st.markdown("**Evidence Found:**")
+                    for evidence_line in details['evidence']:
+                        st.text(f'  - "{evidence_line}"')
 
-    # --- NEW: Threat-specific action nudges ---
+    # --- Threat-specific action nudges ---
     primary_threat = analysis.get('primary_intent')
     if primary_threat == 'Sextortion/Blackmail':
-        st.error("🚨 **CRITICAL SEXTORTION RISK DETECTED!**")
-        st.warning(
-            """
-            **Immediate Recommended Actions:**
-            1. **DO NOT PAY OR SEND ANYTHING.** This will likely lead to more demands.
-            2. **Stop all communication.** Block the user on all platforms immediately.
-            3. **Preserve all evidence.** Take screenshots of the chat, profile, and any payment requests.
-            4. **Report the user** to the platform and consider reporting to law enforcement. Sextortion is a serious crime.
-            """
-        )
+        st.error("🚨 **CRITICAL SEXTORTION RISK DETECTED!**", icon="🚨")
+        st.warning(...) # Your detailed warning text here
     elif primary_threat == 'Tech Honeytrap/Scam':
-        st.error("🚨 **HIGH-RISK TECH SCAM DETECTED!**")
-        st.warning(
-            """
-            **Immediate Recommended Actions:**
-            - **DO NOT download or run any files.** They may contain malware.
-            - **DO NOT provide credentials, API keys, or personal information.**
-            - **Verify any job offers** through the company's official website or official LinkedIn page.
-            - **Be skeptical** of any "guaranteed returns" on investments.
-            """
-        )
+        st.error("🚨 **HIGH-RISK TECH SCAM DETECTED!**", icon="💻")
+        st.warning(...) # Your detailed warning text here
     elif st.session_state.final_verdict > 60:
         st.warning("HIGH RISK DETECTED!")
     
-    # Action buttons are now relevant for any high-risk scenario
+    # --- Action buttons for high-risk scenarios ---
     if st.session_state.final_verdict > 60:
         col1, col2 = st.columns(2)
         with col1:
@@ -183,46 +177,49 @@ if st.session_state.analysis_complete:
             if st.button("Engage Red Teaming Bot 🤖", use_container_width=True):
                 logger.info("User action: Chose 'Engage Red Teaming Bot'.")
                 st.session_state.red_team_mode = True
-                st.session_state.display_messages = [] # Initialize display messages for the new bot
-                # The LangChain bot now handles its own history, so we don't need to prime it.
+                st.session_state.display_messages = []
+                st.session_state.investigation_concluded = False # Reset for new session
 
 
-# --- Red Teaming Bot Chat Interface (REPLACED AS REQUESTED) ---
+# --- Red Teaming Bot Chat Interface (UPGRADED) ---
 if st.session_state.red_team_mode:
     st.divider()
     st.header("🤖 Red Teaming Bot Session")
     
-    # Initialize the display history if it doesn't exist
-    if "display_messages" not in st.session_state:
-        st.session_state.display_messages = []
-
-    # Display existing chat messages from our display history
     for message in st.session_state.display_messages:
         role = "You (Alex)" if message["role"] == "assistant" else "Scammer"
         with st.chat_message(name=role):
             st.markdown(message["content"])
     
-    # The chat input widget
-    if prompt := st.chat_input("You are scammer now, enter some messages to see how the bot will converse from your account after reporting..."):
+    # Check the session state flag to see if the investigation is over
+    investigation_over = st.session_state.get("investigation_concluded", False)
+    
+    if prompt := st.chat_input("Enter the scammer's latest message...", disabled=investigation_over):
         logger.info(f"Red Team Input (from scammer): '{prompt}'")
 
-        # Add user's message to the display list and show it immediately
         st.session_state.display_messages.append({"role": "user", "content": prompt})
         with st.chat_message(name="Scammer"):
             st.markdown(prompt)
 
-        # Get and display the bot's reply
-        with st.spinner("User is typing..."):
+        with st.spinner("Alex is thinking and analyzing..."):
             logger.info("Sending request to LangChain Gemini bot...")
             
-            # Call the new function with only the user's prompt. LangChain handles memory.
-            reply = get_gemini_reply(prompt)
+            bot_response_dict = get_gemini_reply(prompt)
+            reply = bot_response_dict.get("reply", "Sorry, an error occurred.")
+            status = bot_response_dict.get("status", "engaging")
             
-            logger.info("Received reply from LangChain bot.")
-            # Add bot's reply to the display list
+            logger.info(f"Received reply from bot with status: {status}")
+            
             st.session_state.display_messages.append({"role": "assistant", "content": reply})
             with st.chat_message(name="You (Alex)"):
                 st.markdown(reply)
             
-            # Rerun to show the new message immediately
+            if status == "concluded":
+                st.session_state.investigation_concluded = True
+            
             st.rerun()
+
+    if st.session_state.get("investigation_concluded", False):
+        st.success("🎉 **Investigation Concluded!** A definitive trigger was found.", icon="🎯")
+        st.balloons()
+        st.info("The chat input has been disabled. You can now Block & Report or start a new analysis.")
