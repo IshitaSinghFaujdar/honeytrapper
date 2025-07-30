@@ -220,6 +220,6 @@ if st.session_state.red_team_mode:
             st.rerun()
 
     if st.session_state.get("investigation_concluded", False):
-        st.success("🎉 **Investigation Concluded!** A definitive trigger was found.", icon="🎯")
+        st.success("🎉 **Investigation Concluded!** A definitive trigger was found.🎉", icon="🎯")
         st.balloons()
         st.info("The chat input has been disabled. You can now Block & Report or start a new analysis.")
