@@ -1,0 +1,21 @@
+# Python Virtual Environment
+# Never commit your virtual environment.
+venv/
+
+# Other projects in the same folder
+# As requested, ignoring the sentinel_iris directory.
+sentinel_iris/
+
+# Log files
+# Logs are generated runtime output, not source code.
+logs/
+*.log
+
+# Python cache and compiled files
+__pycache__/
+*.pyc
+
+# IDE and OS-specific files
+.idea/
+.vscode/
+.DS_Store
