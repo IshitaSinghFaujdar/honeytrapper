@@ -186,40 +186,63 @@ if st.session_state.red_team_mode:
     st.divider()
     st.header("🤖 Red Teaming Bot Session")
     
+    # --- NEW: Message display loop now handles system warnings ---
     for message in st.session_state.display_messages:
-        role = "You (Alex)" if message["role"] == "assistant" else "Scammer"
-        with st.chat_message(name=role):
-            st.markdown(message["content"])
-    
+        if message["role"] == "system_warning":
+            st.warning(message["content"], icon="🤖")
+        else:
+            role = "You (Alex)" if message["role"] == "assistant" else "Scammer"
+            with st.chat_message(name=role):
+                st.markdown(message["content"])
+
     # Check the session state flag to see if the investigation is over
     investigation_over = st.session_state.get("investigation_concluded", False)
     
     if prompt := st.chat_input("Enter the scammer's latest message...", disabled=investigation_over):
         logger.info(f"Red Team Input (from scammer): '{prompt}'")
-
+        
+        # We append the user message right away so it appears instantly
         st.session_state.display_messages.append({"role": "user", "content": prompt})
-        with st.chat_message(name="Scammer"):
-            st.markdown(prompt)
 
         with st.spinner("Alex is thinking and analyzing..."):
-            logger.info("Sending request to LangChain Gemini bot...")
+            logger.info("Sending request to Gemini bot...")
             
+            # This now returns a richer dictionary
             bot_response_dict = get_gemini_reply(prompt)
             reply = bot_response_dict.get("reply", "Sorry, an error occurred.")
             status = bot_response_dict.get("status", "engaging")
             
+            # --- FEATURES 1 & 2 ADDITION: Check for new flags from the bot ---
+            ai_detected = bot_response_dict.get("ai_detected", False)
+            mimicking_detected = bot_response_dict.get("mimicking_detected", False)
+
+            if ai_detected:
+                logger.warning("AI-like response pattern detected from user.")
+                st.session_state.display_messages.append({
+                    "role": "system_warning",
+                    "content": "⚠️ **AI DETECTED:** The message pattern suggests you may be interacting with an automated bot, not a human."
+                })
+            
+            if mimicking_detected:
+                logger.warning("Deep behavioral mimicking detected from user.")
+                st.session_state.display_messages.append({
+                    "role": "system_warning",
+                    "content": "🚨 **DEEP MIMICKING DETECTED:** The user is closely mirroring the language and style of your previous messages. This is a common manipulation tactic to build false rapport."
+                })
+            
             logger.info(f"Received reply from bot with status: {status}")
             
+            # Append the bot's actual reply
             st.session_state.display_messages.append({"role": "assistant", "content": reply})
-            with st.chat_message(name="You (Alex)"):
-                st.markdown(reply)
             
+            # --- FEATURE 3 RE-CHECK: Logic for conclusion ---
             if status == "concluded":
                 st.session_state.investigation_concluded = True
             
             st.rerun()
 
+    # --- FEATURE 3 RE-CHECK: Enhanced conclusion display with balloons ---
     if st.session_state.get("investigation_concluded", False):
-        st.success("🎉 **Investigation Concluded!** A definitive trigger was found.🎉", icon="🎯")
+        st.success("🎉 **Investigation Concluded! A definitive trigger was found.** 🎉", icon="🎯")
         st.balloons()
         st.info("The chat input has been disabled. You can now Block & Report or start a new analysis.")
